@@ -16,6 +16,7 @@ x-xia-common: &xia-common
 services:
   host0:
     <<: *xia-common
+    container_name: host0
     environment:
       ROLE: host
     networks:
@@ -23,6 +24,7 @@ services:
 
   router0:
     <<: *xia-common
+    container_name: router0
     environment:
       ROLE: router
       NAMESERVER: "false"
@@ -32,6 +34,7 @@ services:
 
   router1:
     <<: *xia-common
+    container_name: router1
     environment:
       ROLE: router
       NAMESERVER: "true"
@@ -41,6 +44,7 @@ services:
 
   router2:
     <<: *xia-common
+    container_name: router2
     environment:
       ROLE: router
       NAMESERVER: "false"
@@ -51,6 +55,7 @@ services:
 
   server0:
     <<: *xia-common
+    container_name: server0
     environment:
       ROLE: host
     networks:
@@ -58,6 +63,7 @@ services:
 
   server1:
     <<: *xia-common
+    container_name: server1
     environment:
       ROLE: host
     networks:
