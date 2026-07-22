@@ -9,7 +9,7 @@ cd /opt/xia-core
 # ROLE       = router | host
 # NAMESERVER = true on exactly ONE router in the ENTIRE testbed
 #              (xia-core's mainline branches support only one nameserver
-#              for the whole flat network -- see TODO.md)
+#              for the whole flat network)
 ROLE="${ROLE:?ROLE env var must be 'router' or 'host'}"
 NAMESERVER="${NAMESERVER:-false}"
 AD_NAME="${AD_NAME:-unknown-ad}"
