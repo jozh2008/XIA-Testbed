@@ -1,0 +1,56 @@
+networks:
+  xia-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  xia-shared:
+
+services:
+  xia-router:
+    build: .
+    image: xia-core:v2
+    container_name: xia-router
+    hostname: xia-router
+    privileged: true
+    tty: true
+    networks:
+      xia-net:
+        ipv4_address: 172.20.0.2
+    volumes:
+      - xia-shared:/shared
+    command: [ "/opt/xia-core/scripts/start-router.sh" ]
+
+  xia-node1:
+    build: .
+    image: xia-core:v2
+    container_name: xia-node1
+    hostname: xia-node1
+    privileged: true
+    tty: true
+    depends_on:
+      - xia-router
+    networks:
+      xia-net:
+        ipv4_address: 172.20.0.10
+    volumes:
+      - xia-shared:/shared
+    command: [ "/opt/xia-core/scripts/start-node.sh" ]
+
+  xia-node2:
+    build: .
+    image: xia-core:v2
+    container_name: xia-node2
+    hostname: xia-node2
+    privileged: true
+    tty: true
+    depends_on:
+      - xia-router
+    networks:
+      xia-net:
+        ipv4_address: 172.20.0.11
+    volumes:
+      - xia-shared:/shared
+    command: [ "/opt/xia-core/scripts/start-node.sh" ]
