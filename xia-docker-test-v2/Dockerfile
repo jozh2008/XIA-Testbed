@@ -26,6 +26,7 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     swig \
     sudo \
+    tcpdump \
     && rm -rf /var/lib/apt-get/lists/*
 
 # Install PyNaCl for Python 2 (required by xnetjd)
@@ -33,10 +34,10 @@ RUN pip2 install pynacl
 
 # Clone into a clean location and build sequentially
 WORKDIR /opt
-# RUN git clone -b xia-v2 https://github.com/XIA-Project/xia-core.git /opt/xia-core
-RUN git clone https://github.com/XIA-Project/xia-core.git /opt/xia-core
+RUN git clone -b xia-v2 https://github.com/XIA-Project/xia-core.git /opt/xia-core
+#RUN git clone https://github.com/XIA-Project/xia-core.git /opt/xia-core
 WORKDIR /opt/xia-core
-RUN ./configure && make
+RUN DEBUG=1 ./configure && make
 
 # Bake in the container startup scripts used by docker-compose
 COPY scripts/start-router.sh /opt/xia-core/scripts/start-router.sh
