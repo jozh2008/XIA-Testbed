@@ -46,6 +46,6 @@ RUN chmod +x /opt/xia-core/scripts/start-router.sh /opt/xia-core/scripts/start-n
 
 # Set environment variables
 ENV XIA_HOME=/opt/xia-core
-ENV PATH=$PATH:/opt/xia-core/bin:/opt/xia-core/sbin
+ENV PATH=$PATH:/opt/xia-core/bin:${PATH}
 
 CMD ["/bin/bash"]
