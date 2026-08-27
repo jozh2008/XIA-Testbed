@@ -13,6 +13,7 @@ rm -f /tmp/xsocket* /tmp/icid* /tmp/xcache* /tmp/click*
 # The xia-shared volume survives container recreation.
 rm -f /shared/resolv.conf
 rm -f /shared/nameserver.ready
+rm -f /shared/dag_xia-node*.txt
 
 echo "[$(hostname)] starting XIA router + nameserver..."
 ./bin/xianet -r -n start || true
@@ -46,6 +47,21 @@ for n in xia-node1 xia-node2; do
         sleep 1
     done
 done
+
+# xianet initially installs the router HID as a local route. During host
+# network join that entry can be replaced with a route through port 0 whose
+# next hop is the router HID itself. Restore the local route after both hosts
+# have published their current DAGs so nameserver traffic does not loop until
+# its hop limit expires.
+router_hid=$(awk '{ for (i = 1; i <= NF; i++) if ($i ~ /^HID:/) { print $i; exit } }' etc/resolv.conf)
+
+if [ -z "$router_hid" ]; then
+    echo "[$(hostname)] unable to read router HID from etc/resolv.conf" >&2
+    exit 1
+fi
+
+./bin/xroute -a "HID,${router_hid},-2"
+echo "[$(hostname)] restored router self-route for $router_hid"
 
 cat /shared/dag_xia-node*.txt > etc/hosts.xia
 
