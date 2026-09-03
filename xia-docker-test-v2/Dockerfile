@@ -37,6 +37,9 @@ WORKDIR /opt
 RUN git clone -b xia-v2 https://github.com/XIA-Project/xia-core.git /opt/xia-core
 #RUN git clone https://github.com/XIA-Project/xia-core.git /opt/xia-core
 WORKDIR /opt/xia-core
+COPY patches/xtransport-preserve-raw-socket.patch /tmp/xtransport-preserve-raw-socket.patch
+RUN git apply --check /tmp/xtransport-preserve-raw-socket.patch && \
+    git apply /tmp/xtransport-preserve-raw-socket.patch
 RUN DEBUG=1 ./configure && make
 
 # Bake in the container startup scripts used by docker-compose
