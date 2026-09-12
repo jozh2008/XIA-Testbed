@@ -1,56 +1,151 @@
 networks:
-  xia-net:
+  net-ad0:
+    # AD0: host0 <-> router0
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 172.20.0.0/24
+  net-ad1:
+    # AD1: router0 <-> router1 <-> router2 (backbone)
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.1.0/24
+  net-ad2:
+    # AD2: router2 <-> server0, server1
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.2.0/24
 
 volumes:
   xia-shared:
 
 services:
-  xia-router:
+  # xia-router:
+  #   build: .
+  #   image: xia-core:v2
+  #   container_name: xia-router
+  #   hostname: xia-router
+  #   privileged: true
+  #   tty: true
+  #   networks:
+  #     xia-net:
+  #       ipv4_address: 172.20.0.2
+  #   volumes:
+  #     - xia-shared:/shared
+  #   command: [ "/opt/xia-core/scripts/start-router.sh" ]
+
+  router1:
     build: .
     image: xia-core:v2
-    container_name: xia-router
-    hostname: xia-router
+    container_name: router1
+    hostname: router1
     privileged: true
     tty: true
+    environment:
+      - XIA_NAMESERVER=1
     networks:
-      xia-net:
-        ipv4_address: 172.20.0.2
+      net-ad1:
+        ipv4_address: 172.20.1.2
     volumes:
       - xia-shared:/shared
     command: [ "/opt/xia-core/scripts/start-router.sh" ]
 
-  xia-node1:
+  router0:
     build: .
     image: xia-core:v2
-    container_name: xia-node1
-    hostname: xia-node1
+    container_name: router0
+    hostname: router0
     privileged: true
     tty: true
     depends_on:
-      - xia-router
+      - router1
+    environment:
+      - XIA_PEER_HOSTS=host0
+      - XIA_NAMESERVER=0
     networks:
-      xia-net:
+      net-ad0:
+        ipv4_address: 172.20.0.2
+      net-ad1:
+        ipv4_address: 172.20.1.3
+    volumes:
+      - xia-shared:/shared
+    command: [ "/opt/xia-core/scripts/start-router.sh" ]
+
+  router2:
+    build: .
+    image: xia-core:v2
+    container_name: router2
+    hostname: router2
+    privileged: true
+    tty: true
+    depends_on:
+      - router1
+    environment:
+      - XIA_PEER_HOSTS=sever0 server1
+      - XIA_NAMESERVER=0
+    networks:
+      net-ad1:
+        ipv4_address: 172.20.1.4
+      net-ad2:
+        ipv4_address: 172.20.2.2
+    volumes:
+      - xia-shared:/shared
+    command: [ "/opt/xia-core/scripts/start-router.sh" ]
+
+  host0:
+    build: .
+    image: xia-core:v2
+    container_name: host0
+    hostname: host0
+    privileged: true
+    tty: true
+    depends_on:
+      - router0
+    environment:
+      - XIA_PEER_HOSTS=host0 server0 server1
+    networks:
+      net-ad0:
         ipv4_address: 172.20.0.10
     volumes:
       - xia-shared:/shared
     command: [ "/opt/xia-core/scripts/start-node.sh" ]
 
-  xia-node2:
+  server0:
     build: .
     image: xia-core:v2
-    container_name: xia-node2
-    hostname: xia-node2
+    container_name: server0
+    hostname: server0
     privileged: true
     tty: true
     depends_on:
-      - xia-router
+      - router2
+    environment:
+      - XIA_PEER_HOSTS=host0 server0 server1
+
     networks:
-      xia-net:
-        ipv4_address: 172.20.0.11
+      net-ad2:
+        ipv4_address: 172.20.2.10
+    volumes:
+      - xia-shared:/shared
+    command: [ "/opt/xia-core/scripts/start-node.sh" ]
+
+  server1:
+    build: .
+    image: xia-core:v2
+    container_name: server1
+    hostname: server1
+    privileged: true
+    tty: true
+    depends_on:
+      - router2
+    environment:
+      - XIA_PEER_HOSTS=host0 server0 server1
+
+    networks:
+      net-ad2:
+        ipv4_address: 172.20.2.11
     volumes:
       - xia-shared:/shared
     command: [ "/opt/xia-core/scripts/start-node.sh" ]

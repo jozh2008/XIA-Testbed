@@ -1,6 +1,18 @@
 #!/bin/bash
 
 # Startup script for XIA host nodes (non-router, non-nameserver).
+#
+# Generalized: the set of peer hosts to wait for (for building hosts.xia)
+# is no longer hardcoded to "xia-node1 xia-node2". Instead it's read from
+# the XIA_PEER_HOSTS environment variable, a space-separated list of
+# hostnames, e.g.:
+#
+#   environment:
+#     - XIA_PEER_HOSTS=host0
+#
+# For a node with no peers on its local AD (e.g. an only-child host), set
+# XIA_PEER_HOSTS to just its own hostname, or leave it unset -- see the
+# fallback below.
 
 cd /opt/xia-core
 
@@ -38,15 +50,29 @@ until xdag > /shared/dag_$(hostname).txt 2>/dev/null && [ -s /shared/dag_$(hostn
     sleep 1
 done
 
-# Wait until every HOST node has published its DAG line.
+# Determine the peer host list.
+#   1. Use XIA_PEER_HOSTS if set (space-separated hostnames).
+#   2. Otherwise fall back to just this node's own hostname, so a node
+#      never blocks forever waiting for peers nobody configured.
+if [ -n "$XIA_PEER_HOSTS" ]; then
+    PEER_HOSTS="$XIA_PEER_HOSTS"
+else
+    echo "[$(hostname)] WARNING: XIA_PEER_HOSTS not set, defaulting to self only"
+    PEER_HOSTS="$(hostname)"
+fi
 
-for n in xia-node1 xia-node2; do
+echo "[$(hostname)] waiting for peer hosts: $PEER_HOSTS"
+
+# Wait until every configured peer host has published its DAG line.
+for n in $PEER_HOSTS; do
     until [ -s /shared/dag_$n.txt ]; do
         sleep 1
     done
 done
 
-cat /shared/dag_xia-node*.txt > etc/hosts.xia
+#cat $(for n in $PEER_HOSTS; do echo /shared/dag_$n.txt; done) > etc/hosts.xia
+# Automatically bundle every DAG on the network into hosts.xia
+cat /shared/dag_*.txt > etc/hosts.xia
 
 echo "[$(hostname)] hosts.xia ready:"
 cat etc/hosts.xia
