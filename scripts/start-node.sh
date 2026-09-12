@@ -1,18 +1,18 @@
 #!/bin/bash
 
-# Startup script for XIA host nodes (non-router, non-nameserver).
+# Startup script for XIA host nodes.
 #
-# Generalized: the set of peer hosts to wait for (for building hosts.xia)
-# is no longer hardcoded to "xia-node1 xia-node2". Instead it's read from
-# the XIA_PEER_HOSTS environment variable, a space-separated list of
-# hostnames, e.g.:
+# Environment:
 #
-#   environment:
-#     - XIA_PEER_HOSTS=host0
+#   XIA_PEER_HOSTS
+#       Space-separated list of hostnames whose DAGs must be present
+#       before this node builds hosts.xia.
 #
-# For a node with no peers on its local AD (e.g. an only-child host), set
-# XIA_PEER_HOSTS to just its own hostname, or leave it unset -- see the
-# fallback below.
+#       Example:
+#           XIA_PEER_HOSTS="host0"
+#           XIA_PEER_HOSTS="server0 server1"
+#
+#       If unset, this node waits only for itself.
 
 cd /opt/xia-core
 
@@ -21,9 +21,10 @@ rsyslogd
 rm -f /tmp/xsocket* /tmp/icid* /tmp/xcache* /tmp/click*
 ./bin/xianet kill || true
 
-# Host nodes wait for the router to publish the CURRENT nameserver
-# configuration. The readiness marker prevents copying a stale
-# resolv.conf left in the persistent shared Docker volume.
+# ----------------------------------------------------------------------
+# Wait for the nameserver router to publish the CURRENT resolver config.
+# ----------------------------------------------------------------------
+
 
 echo "[$(hostname)] waiting for router nameserver..."
 
@@ -36,24 +37,38 @@ cp /shared/resolv.conf etc/resolv.conf
 echo "[$(hostname)] using nameserver:"
 cat etc/resolv.conf
 
+# ----------------------------------------------------------------------
+# Start XIA host.
+# ----------------------------------------------------------------------
+
+
 echo "[$(hostname)] starting XIA host..."
 ./bin/xianet -t start || true
 
-# Publish our own MAC address so the router can pin a STATIC ARP entry for
-# us later.
+# ----------------------------------------------------------------------
+# Publish this host's MAC address.
+# The router can use this to pin a static ARP entry.
+# ----------------------------------------------------------------------
+
 
 cat /sys/class/net/eth0/address > /shared/mac_$(hostname).txt
 
-# Publish our own DAG line.
+# ----------------------------------------------------------------------
+# Publish this host's DAG.
+# ----------------------------------------------------------------------
+
 
 until xdag > /shared/dag_$(hostname).txt 2>/dev/null && [ -s /shared/dag_$(hostname).txt ]; do
     sleep 1
 done
 
-# Determine the peer host list.
-#   1. Use XIA_PEER_HOSTS if set (space-separated hostnames).
-#   2. Otherwise fall back to just this node's own hostname, so a node
-#      never blocks forever waiting for peers nobody configured.
+# ----------------------------------------------------------------------
+# Determine which peer hosts we need to wait for.
+#
+# If XIA_PEER_HOSTS is unset, default to this host only so that a node
+# never blocks forever waiting for hosts that were never configured.
+# ----------------------------------------------------------------------
+
 if [ -n "$XIA_PEER_HOSTS" ]; then
     PEER_HOSTS="$XIA_PEER_HOSTS"
 else
@@ -64,14 +79,19 @@ fi
 echo "[$(hostname)] waiting for peer hosts: $PEER_HOSTS"
 
 # Wait until every configured peer host has published its DAG line.
-for n in $PEER_HOSTS; do
-    until [ -s /shared/dag_$n.txt ]; do
+for host in $PEER_HOSTS; do
+    until [ -s /shared/dag_${host}.txt ]; do
         sleep 1
     done
 done
 
-#cat $(for n in $PEER_HOSTS; do echo /shared/dag_$n.txt; done) > etc/hosts.xia
-# Automatically bundle every DAG on the network into hosts.xia
+# ----------------------------------------------------------------------
+# Build hosts.xia.
+#
+# At this point all configured peers are guaranteed to have published
+# their DAGs. Include every currently published DAG, as in the original.
+# ----------------------------------------------------------------------
+
 cat /shared/dag_*.txt > etc/hosts.xia
 
 echo "[$(hostname)] hosts.xia ready:"
