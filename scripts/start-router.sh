@@ -113,6 +113,15 @@ echo "[$(hostname)] own router HID: $router_hid"
 ./bin/xroute -a "HID,${router_hid},-2"
 echo "[$(hostname)] restored router self-route for $router_hid"
 
+# ----------------------------------------------------------------------
+# Publish this router's own DAG so hosts and other routers can resolve it
+# ----------------------------------------------------------------------
+until xdag > /shared/dag_$(hostname).txt 2>/dev/null && [ -s /shared/dag_$(hostname).txt ]; do
+    sleep 1
+done
+
+echo "[$(hostname)] published router DAG to /shared/dag_$(hostname).txt"
+
 if [ -n "$XIA_PEER_HOSTS" ]; then
     # --------------------------------------------------------------
     # This router has locally attached hosts.
