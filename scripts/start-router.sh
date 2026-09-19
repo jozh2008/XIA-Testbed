@@ -122,6 +122,12 @@ done
 
 echo "[$(hostname)] published router DAG to /shared/dag_$(hostname).txt"
 
+# Bundle the currently published host DAGs.
+cat /shared/dag_*.txt > etc/hosts.xia
+
+echo "[$(hostname)] hosts.xia ready:"
+cat etc/hosts.xia
+
 if [ -n "$XIA_PEER_HOSTS" ]; then
     # --------------------------------------------------------------
     # This router has locally attached hosts.
@@ -129,8 +135,8 @@ if [ -n "$XIA_PEER_HOSTS" ]; then
 
     echo "[$(hostname)] waiting for local peer hosts: $XIA_PEER_HOSTS"
 
-    for n in $XIA_PEER_HOSTS; do
-        until [ -s "/shared/dag_$n.txt" ]; do
+    for host in $XIA_PEER_HOSTS; do
+        until [ -s /shared/dag_${host}.txt ]; do
             sleep 1
         done
     done

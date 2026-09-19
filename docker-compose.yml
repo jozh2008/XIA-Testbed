@@ -29,6 +29,17 @@ networks:
       config:
         - subnet: 172.20.4.0/24
 
+  net-r0-r3:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.5.0/24
+  net-r3-r2:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.6.0/24
+
 volumes:
   xia-shared:
 
@@ -83,6 +94,8 @@ services:
         ipv4_address: 172.20.0.2
       net-r0-r1:
         ipv4_address: 172.20.1.3
+      net-r0-r3:
+        ipv4_address: 172.20.5.2
     volumes:
       - xia-shared:/shared
     command: [ "/opt/xia-core/scripts/start-router.sh" ]
@@ -113,6 +126,34 @@ services:
         ipv4_address: 172.20.3.2
       net-r2-s1:
         ipv4_address: 172.20.4.2
+      net-r3-r2:
+        ipv4_address: 172.20.6.3
+    volumes:
+      - xia-shared:/shared
+    command: [ "/opt/xia-core/scripts/start-router.sh" ]
+
+  # ------------------------------------------------------------
+  # Router 3 (AD0 <-> AD3 <-> AD2)
+  # ------------------------------------------------------------
+  router3:
+    build: .
+    image: xia-core:v2
+    platform: linux/amd64
+    container_name: router3
+    hostname: router3
+    privileged: true
+    tty: true
+    sysctls:
+      - net.ipv4.ip_forward=1
+    depends_on:
+      - router1
+    environment:
+      - XIA_NAMESERVER=0
+    networks:
+      net-r0-r3:
+        ipv4_address: 172.20.5.3
+      net-r3-r2:
+        ipv4_address: 172.20.6.2
     volumes:
       - xia-shared:/shared
     command: [ "/opt/xia-core/scripts/start-router.sh" ]

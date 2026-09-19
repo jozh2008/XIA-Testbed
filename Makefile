@@ -1,12 +1,13 @@
 COMPOSE := docker compose
 IMAGE := xia-core:v2
 
-NODES := router0 router1 router2 host0 server0 server1
+NODES := router0 router1 router2 host0 server0 server1 router3
 
 .PHONY: all
 .PHONY: build rebuild up down reset restart
 .PHONY: status logs check
-.PHONY: shell-host0 shell-server0 shell-server1 shell-router0 shell-router1 shell-router2
+.PHONY: shell-host0 shell-server0 shell-server1 shell-router0 shell-router1 shell-router2 shell-router3
+.PHONY: node-off node-on node-bounce node-kill
 .PHONY: xdag xroute
 
 
@@ -87,6 +88,9 @@ shell-router1:
 shell-router2:
 	$(COMPOSE) exec router2 bash
 
+shell-router3:
+	$(COMPOSE) exec router3 bash
+
 
 # ============================================================
 # XIA information
@@ -99,3 +103,35 @@ xdag:
 xroute:
 	@test -n "$(NODE)" || (echo "Usage: make xroute NODE=host0"; exit 1)
 	$(COMPOSE) exec $(NODE) xroute
+
+
+# ============================================================
+# Per-node control (failover testing)
+#
+#   make node-off    NODE=router3   graceful stop
+#   make node-kill   NODE=router3   abrupt failure (SIGKILL)
+#   make node-on     NODE=router3   recreate with clean state and start
+#   make node-bounce NODE=router3   off, then on
+# ============================================================
+
+define require_node
+	@test -n "$(NODE)" || { echo "Usage: make $@ NODE=<node>"; exit 1; }
+	@echo "$(NODES)" | tr ' ' '\n' | grep -qx "$(NODE)" || { echo "Unknown node '$(NODE)'. Valid: $(NODES)"; exit 1; }
+endef
+
+node-off:
+	$(require_node)
+	$(COMPOSE) stop $(NODE)
+
+node-kill:
+	$(require_node)
+	$(COMPOSE) kill $(NODE)
+
+node-on:
+	$(require_node)
+	$(COMPOSE) up -d --force-recreate --no-deps $(NODE)
+
+node-bounce:
+	$(require_node)
+	$(MAKE) node-off NODE=$(NODE)
+	$(MAKE) node-on NODE=$(NODE)
