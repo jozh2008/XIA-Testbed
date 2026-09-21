@@ -1,0 +1,19 @@
+diff --git a/click/elements/xia/xtransport.cc b/click/elements/xia/xtransport.cc
+--- a/click/elements/xia/xtransport.cc
++++ b/click/elements/xia/xtransport.cc
+@@ -2804,6 +2804,7 @@ void XTRANSPORT::Xsendto(unsigned short _sport, uint32_t id, xia::XSocketMsg *xia
+ 	if (!sk) {
+ 		//No local SID bound yet, so bind one
+ 		sk = new sock();
++		sk->sock_type = SOCK_DGRAM;
+ 	}
+ 
+ 	if (sk->initialized == false) {
+@@ -2814,7 +2815,6 @@ void XTRANSPORT::Xsendto(unsigned short _sport, uint32_t id, xia::XSocketMsg *xia
+ 			INFO("sk->port was %d setting to %d", sk->port, _sport);
+ 		}
+ 		sk->port = _sport;
+-		sk->sock_type = SOCK_DGRAM;
+ 
+ 		// Create a random XID
+ 		char xid_string[50];
