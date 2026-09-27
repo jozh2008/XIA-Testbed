@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="de">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XIA – Video-Funktionstest</title>
+<style>
+body{max-width:820px;margin:48px auto;padding:0 24px;font:17px/1.6 system-ui;background:#111827;color:#e5e7eb}
+h1{font-size:28px}button{padding:12px 20px;font:inherit;cursor:pointer;border:0;border-radius:6px;background:#93c5fd;color:#111827}button:disabled{opacity:.5;cursor:default}
+video{display:block;width:100%;margin-top:24px;background:#000}pre{white-space:pre-wrap;font:14px/1.6 monospace}small{color:#cbd5e1}
+</style>
+<h1>XIA · Video-Funktionstest</h1>
+<p>Synthetischer Testclip: 12 Sekunden, 320 × 180 Pixel, ohne Ton.</p>
+<p><small>Zusätzlicher Test-Player. Manifest und Segmente werden über den Proxy auf host0 und XIA abgerufen. Kein Durchsatz- oder Adaptivitätsbenchmark.</small></p>
+<button id="start">Video über XIA laden und abspielen</button>
+<video id="video" controls muted playsinline></video>
+<pre id="log" role="status" aria-live="polite">Bereit.</pre>
+<script>
+const button=document.getElementById('start'), video=document.getElementById('video'), log=document.getElementById('log');
+const line=t=>{log.textContent+='\n'+t;};
+async function get(path){
+  const r=await fetch(path,{cache:'no-store',signal:AbortSignal.timeout(30000)});
+  if(!r.ok) throw new Error('HTTP '+r.status+': '+await r.text());
+  return r;
+}
+function waitEvent(target,name){
+  return new Promise((resolve,reject)=>{
+    const done=()=>{cleanup();resolve();};
+    const fail=()=>{cleanup();reject(new Error('MediaSource-/Decoderfehler'));};
+    const timer=setTimeout(()=>{cleanup();reject(new Error('Zeitlimit beim Videoplayer'));},15000);
+    function cleanup(){clearTimeout(timer);target.removeEventListener(name,done);target.removeEventListener('error',fail);}
+    target.addEventListener(name,done,{once:true});target.addEventListener('error',fail,{once:true});
+  });
+}
+video.addEventListener('ended',()=>line('Wiedergabe beendet: '+video.currentTime.toFixed(1)+' Sekunden.'));
+video.addEventListener('error',()=>line('Videofehler: '+(video.error ? video.error.message : 'unbekannt')));
+button.onclick=async()=>{
+  button.disabled=true;log.textContent='Manifest wird über XIA geladen …';
+  let objectUrl;
+  try{
+    if(!window.MediaSource) throw new Error('Dieser Browser unterstützt MediaSource hier nicht. Bitte Chrome oder Firefox verwenden.');
+    const xml=await (await get('/manifest')).text();
+    const doc=new DOMParser().parseFromString(xml,'application/xml');
+    if(doc.querySelector('parsererror')) throw new Error('Ungültiges Manifest');
+    const ns='urn:mpeg:dash:schema:mpd:2011';
+    const reps=doc.getElementsByTagNameNS(ns,'Representation');
+    if(reps.length!==1) throw new Error('Dieser Test-Player erwartet genau eine Qualitätsstufe');
+    const rep=reps[0];
+    const mime=rep.getAttribute('mimeType')+'; codecs="'+rep.getAttribute('codecs')+'"';
+    if(!MediaSource.isTypeSupported(mime)) throw new Error('Codec nicht unterstützt: '+mime);
+    const init=rep.getElementsByTagNameNS(ns,'Initialization')[0];
+    const segments=Array.from(rep.getElementsByTagNameNS(ns,'SegmentURL'));
+    if(!init || segments.length!==6) throw new Error('Erwartet: Initialisierung und sechs Segmente');
+    line('Manifest empfangen: sechs Segmente.');
+    const media=new MediaSource();
+    const opened=waitEvent(media,'sourceopen');
+    objectUrl=URL.createObjectURL(media);video.src=objectUrl;
+    await opened;
+    const buffer=media.addSourceBuffer(mime);
+    const urls=[init.getAttribute('sourceURL'),...segments.map(s=>s.getAttribute('media'))];
+    for(let i=0;i<urls.length;i++){
+      const bytes=await (await get('/chunk?url='+encodeURIComponent(urls[i]))).arrayBuffer();
+      const appended=waitEvent(buffer,'updateend');buffer.appendBuffer(bytes);await appended;
+      line((i===0?'Initialisierung':'Segment '+i)+': '+bytes.byteLength+' Bytes, CID geprüft.');
+      if(i===1) video.play().catch(()=>line('Zum Abspielen bitte die Play-Taste im Video drücken.'));
+    }
+    media.endOfStream();
+    line('Alle Videodaten geladen. Die Wiedergabe kann bis zum Ende laufen.');
+  }catch(e){line('Fehler: '+e.message);}
+  finally{button.disabled=false;}
+};
+</script>
+</html>
