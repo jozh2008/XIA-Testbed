@@ -10,6 +10,11 @@ NODES := router0 router1 router2 host0 server0 server1 router3
 .PHONY: node-off node-on node-bounce node-kill
 .PHONY: xdag xroute
 
+define require_node
+	@test -n "$(NODE)" || { echo "Usage: make $@ NODE=<node>"; exit 1; }
+	@echo "$(NODES)" | tr ' ' '\n' | grep -qx "$(NODE)" || { echo "Unknown node '$(NODE)'. Valid: $(NODES)"; exit 1; }
+endef
+
 
 # ============================================================
 # Default
@@ -109,27 +114,24 @@ xroute:
 # Per-node control (failover testing)
 #
 #   make node-off    NODE=router3   graceful stop
-#   make node-kill   NODE=router3   abrupt failure (SIGKILL)
-#   make node-on     NODE=router3   recreate with clean state and start
+#   make node-kill   NODE=router3   forceful stop
+#   make node-on     NODE=router3   graceful start
 #   make node-bounce NODE=router3   off, then on
 # ============================================================
 
-define require_node
-	@test -n "$(NODE)" || { echo "Usage: make $@ NODE=<node>"; exit 1; }
-	@echo "$(NODES)" | tr ' ' '\n' | grep -qx "$(NODE)" || { echo "Unknown node '$(NODE)'. Valid: $(NODES)"; exit 1; }
-endef
+
 
 node-off:
 	$(require_node)
-	$(COMPOSE) stop $(NODE)
+	$(COMPOSE) exec $(NODE) /opt/xia-core/bin/xianet stop
 
 node-kill:
 	$(require_node)
-	$(COMPOSE) kill $(NODE)
+	$(COMPOSE) exec $(NODE) /opt/xia-core/bin/xianet kill
 
 node-on:
 	$(require_node)
-	$(COMPOSE) up -d --force-recreate --no-deps $(NODE)
+	$(COMPOSE) exec $(NODE) bash -c 'if [ "$$XIA_NAMESERVER" = "1" ]; then /opt/xia-core/bin/xianet -r -n start; elif [[ "$(NODE)" == router* ]]; then /opt/xia-core/bin/xianet -r start; else /opt/xia-core/bin/xianet -t start; fi'
 
 node-bounce:
 	$(require_node)
