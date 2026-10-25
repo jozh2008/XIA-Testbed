@@ -133,6 +133,19 @@ node-on:
 	$(require_node)
 	$(COMPOSE) exec -T $(NODE) /opt/xia-core/scripts/node-ctl.sh on
 
+
+# node-off:
+# 	$(require_node)
+# 	$(COMPOSE) exec $(NODE) /opt/xia-core/bin/xianet stop
+
+# node-kill:
+# 	$(require_node)
+# 	$(COMPOSE) exec $(NODE) /opt/xia-core/bin/xianet kill
+
+# node-on:
+# 	$(require_node)
+# 	$(COMPOSE) exec $(NODE) bash -c 'if [ "$$XIA_NAMESERVER" = "1" ]; then /opt/xia-core/bin/xianet -r -n start; elif [[ "$(NODE)" == router* ]]; then /opt/xia-core/bin/xianet -r start; else /opt/xia-core/bin/xianet -t start; fi'
+
 node-bounce:
 	$(require_node)
 	$(MAKE) node-off NODE=$(NODE)

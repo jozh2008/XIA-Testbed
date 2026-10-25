@@ -44,8 +44,8 @@ if [ "$XIA_NAMESERVER" = "1" ]; then
 
      # The shared volume survives container recreation, so remove resolver
     # state from the previous run.
-    rm -f /shared/resolv.conf
-    rm -f /shared/nameserver.ready
+    rm -f /shared/resolv_$(hostname).conf
+    rm -f /shared/nameserver_$(hostname).ready
 
     echo "[$(hostname)] starting XIA router + nameserver..."
     ./bin/xianet -r -n start || true
@@ -56,11 +56,11 @@ if [ "$XIA_NAMESERVER" = "1" ]; then
         sleep 1
     done
 
-    cp etc/resolv.conf /shared/resolv.conf
+    cp etc/resolv.conf /shared/resolv_$(hostname).conf
 
     # Only signal readiness AFTER the complete current resolver has
     # been published.
-    touch /shared/nameserver.ready
+    touch /shared/nameserver_$(hostname).ready
 
     echo "[$(hostname)] published current resolv.conf:"
     cat /shared/resolv.conf
@@ -72,20 +72,23 @@ else
 
 
     echo "[$(hostname)] starting XIA router..."
-    echo "[$(hostname)] waiting for nameserver router..."
-
-    until [ -f /shared/nameserver.ready ]; do
+    echo "[$(hostname)] waiting for at least one nameserver from: $EXPECTED_NAMESERVERS"
+    while true; do
+        for ns in $EXPECTED_NAMESERVERS; do
+            if [ -f /shared/nameserver_${ns}.ready ]; then
+                echo "[$(hostname)] nameserver $ns is ready!"
+                break 2
+            fi
+        done
         sleep 1
     done
 
-    cp /shared/resolv.conf etc/resolv.conf
-
-    echo "[$(hostname)] using nameserver:"
+    # Merge any available nameserver configurations
+    cat /shared/resolv_*.conf > etc/resolv.conf 2>/dev/null
+    echo "[$(hostname)] using merged nameservers:"
     cat etc/resolv.conf
-
     ./bin/xianet -r start || true
 
-    echo "[$(hostname)] own router HID: $router_hid"
 
 
     fi

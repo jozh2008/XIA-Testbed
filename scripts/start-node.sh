@@ -26,15 +26,20 @@ rm -f /tmp/xsocket* /tmp/icid* /tmp/xcache* /tmp/click*
 # ----------------------------------------------------------------------
 
 
-echo "[$(hostname)] waiting for router nameserver..."
-
-until [ -f /shared/nameserver.ready ]; do
+echo "[$(hostname)] waiting for at least one nameserver from: $EXPECTED_NAMESERVERS"
+while true; do
+    for ns in $EXPECTED_NAMESERVERS; do
+        if [ -f /shared/nameserver_${ns}.ready ]; then
+            echo "[$(hostname)] nameserver $ns is ready!"
+            break 2
+        fi
+    done
     sleep 1
 done
 
-cp /shared/resolv.conf etc/resolv.conf
-
-echo "[$(hostname)] using nameserver:"
+# Merge any available nameserver configurations
+cat /shared/resolv_*.conf > etc/resolv.conf 2>/dev/null
+echo "[$(hostname)] using merged nameservers:"
 cat etc/resolv.conf
 
 # ----------------------------------------------------------------------
