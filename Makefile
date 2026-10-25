@@ -123,15 +123,15 @@ xroute:
 
 node-off:
 	$(require_node)
-	$(COMPOSE) exec $(NODE) /opt/xia-core/bin/xianet stop
+	$(COMPOSE) exec -T $(NODE) /opt/xia-core/scripts/node-ctl.sh off
 
 node-kill:
 	$(require_node)
-	$(COMPOSE) exec $(NODE) /opt/xia-core/bin/xianet kill
+	$(COMPOSE) exec -T $(NODE) /opt/xia-core/scripts/node-ctl.sh kill
 
 node-on:
 	$(require_node)
-	$(COMPOSE) exec $(NODE) bash -c 'if [ "$$XIA_NAMESERVER" = "1" ]; then /opt/xia-core/bin/xianet -r -n start; elif [[ "$(NODE)" == router* ]]; then /opt/xia-core/bin/xianet -r start; else /opt/xia-core/bin/xianet -t start; fi'
+	$(COMPOSE) exec -T $(NODE) /opt/xia-core/scripts/node-ctl.sh on
 
 node-bounce:
 	$(require_node)

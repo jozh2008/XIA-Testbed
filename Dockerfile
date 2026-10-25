@@ -43,9 +43,8 @@ RUN git apply --check /tmp/xtransport-preserve-raw-socket.patch && \
 RUN DEBUG=1 ./configure && make
 
 # Bake in the container startup scripts used by docker-compose
-COPY scripts/start-router.sh /opt/xia-core/scripts/start-router.sh
-COPY scripts/start-node.sh /opt/xia-core/scripts/start-node.sh
-RUN chmod +x /opt/xia-core/scripts/start-router.sh /opt/xia-core/scripts/start-node.sh
+COPY scripts/ /opt/xia-core/scripts/
+RUN chmod +x /opt/xia-core/scripts/*.sh
 
 # Set environment variables
 ENV XIA_HOME=/opt/xia-core
